@@ -2,7 +2,19 @@ import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, StatusBar, Dimensions, Platform
 } from 'react-native';
-import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
+const isWeb = Platform.OS === 'web';
+let MapView: any = null;
+let Marker: any = null;
+let Callout: any = null;
+let PROVIDER_GOOGLE: any = null;
+
+if (!isWeb) {
+  const Maps = require('react-native-maps');
+  MapView = Maps.default;
+  Marker = Maps.Marker;
+  Callout = Maps.Callout;
+  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+}
 import { useAuth } from '../context/AuthContext';
 import { useLocation } from '../hooks/useLocation';
 import { supabase, Delivery } from '../lib/supabase';
