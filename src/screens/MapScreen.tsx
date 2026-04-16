@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, StatusBar, Dimensions,
+  View, Text, StyleSheet, TouchableOpacity, StatusBar, Dimensions, Platform
 } from 'react-native';
 import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useAuth } from '../context/AuthContext';
@@ -80,6 +80,15 @@ export function MapScreen() {
         latitudeDelta: 0.5,
         longitudeDelta: 0.5,
       };
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: '#fff', fontSize: 16 }}>Map is not supported on web.</Text>
+        <Text style={{ color: '#aaa', fontSize: 13, marginTop: 8 }}>Please use the mobile app (Android/iOS) to view the map.</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
