@@ -11,6 +11,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 type ChatWithDetails = Chat & {
   participant_name?: string;
+  participant_role?: string;
   last_message?: string;
   last_message_at?: string;
 };
@@ -19,6 +20,7 @@ export function ChatListScreen() {
   const { rider } = useAuth();
   const [chats, setChats] = useState<ChatWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'admin' | 'customer'>('admin');
   const navigation = useNavigation<NativeStackNavigationProp<ChatStackParamList>>();
 
   const fetchChats = useCallback(async () => {
@@ -45,7 +47,7 @@ export function ChatListScreen() {
         // Get participant name
         const { data: person } = await supabase
           .from('people')
-          .select('full_name')
+          .select('full_name, role')
           .eq('id', otherId)
           .single();
 
@@ -61,6 +63,7 @@ export function ChatListScreen() {
         return {
           ...chat,
           participant_name: person?.full_name || 'Admin',
+          participant_role: person?.role || 'user',
           last_message: lastMsg?.message,
           last_message_at: lastMsg?.created_at,
         };
@@ -126,9 +129,11 @@ export function ChatListScreen() {
             <Text style={styles.chatName} numberOfLines={1}>
               {item.participant_name}
             </Text>
-            <View style={styles.adminBadge}>
-              <Text style={styles.adminBadgeText}>Admin</Text>
-            </View>
+            {(item.participant_role === 'admin' || item.participant_role === 'super_admin') && (
+              <View style={styles.adminBadge}>
+                <Text style={styles.adminBadgeText}>Admin</Text>
+              </View>
+            )}
           </View>
           {item.last_message && (
             <Text style={styles.lastMessage} numberOfLines={1}>
@@ -145,6 +150,11 @@ export function ChatListScreen() {
     );
   };
 
+  const filteredChats = chats.filter(chat => {
+    const isAdmin = chat.participant_role === 'admin' || chat.participant_role === 'super_admin';
+    return activeTab === 'admin' ? isAdmin : !isAdmin;
+  });
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
@@ -153,21 +163,41 @@ export function ChatListScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
         <Text style={styles.headerSubtitle}>
-          {chats.length} conversation{chats.length !== 1 ? 's' : ''}
+          {filteredChats.length} conversation{filteredChats.length !== 1 ? 's' : ''}
         </Text>
       </View>
 
-      {chats.length === 0 && !loading ? (
+      {/* Tabs */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'admin' && styles.tabActive]}
+          onPress={() => setActiveTab('admin')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.tabText, activeTab === 'admin' && styles.tabTextActive]}>Admin Support</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'customer' && styles.tabActive]}
+          onPress={() => setActiveTab('customer')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.tabText, activeTab === 'customer' && styles.tabTextActive]}>Customers</Text>
+        </TouchableOpacity>
+      </View>
+
+      {filteredChats.length === 0 && !loading ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyEmoji}>💬</Text>
           <Text style={styles.emptyTitle}>No Messages Yet</Text>
           <Text style={styles.emptyDesc}>
-            Your conversations with admin will appear here.
+            {activeTab === 'admin' 
+              ? 'Your conversations with admin will appear here.'
+              : 'Your conversations with customers will appear here.'}
           </Text>
         </View>
       ) : (
         <FlatList
-          data={chats}
+          data={filteredChats}
           keyExtractor={(item) => item.id}
           renderItem={renderChat}
           contentContainerStyle={styles.listContent}
@@ -199,6 +229,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.35)',
     marginTop: 4,
+  },
+  // Tabs
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    gap: 12,
+    paddingTop: 16,
+  },
+  tab: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  tabActive: {
+    backgroundColor: 'rgba(26, 115, 232, 0.15)',
+    borderColor: 'rgba(26, 115, 232, 0.3)',
+  },
+  tabText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: '#1a73e8',
   },
   listContent: {
     paddingBottom: 100,
