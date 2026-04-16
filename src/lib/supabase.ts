@@ -39,7 +39,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // ─── TypeScript Types ──────────────────────────────────────────
 
-export type RiderProfile = {
+export type UserProfile = {
   id: string;
   email: string;
   first_name: string;
