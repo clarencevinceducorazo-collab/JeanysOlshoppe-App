@@ -7,12 +7,14 @@ import { SplashScreen } from '../screens/SplashScreen';
 import { TabNavigator } from './TabNavigator';
 import { UserTabNavigator } from './UserTabNavigator';
 import { ProductDetailScreen } from '../screens/ProductDetailScreen';
+import { SavedScreen } from '../screens/SavedScreen';
 
 export type RootStackParamList = {
   Login: undefined;
   MainTabs: undefined;
   UserTabs: undefined;
   ProductDetail: { id: string };
+  Saved: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -41,6 +43,7 @@ export function AppNavigator() {
           <Stack.Screen name="Login" component={LoginScreen} />
         )}
         <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+        <Stack.Screen name="Saved" component={SavedScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
