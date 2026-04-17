@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Jeanys Olshoppe App",
-    "slug": "jeanys-olshoppe-app",
+    "name": "Jeany's Olshoppe",
+    "slug": "jeanys-olshoppe",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

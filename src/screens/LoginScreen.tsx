@@ -47,7 +47,7 @@ export function LoginScreen() {
               <Text style={styles.logoEmoji}>🛵</Text>
             </View>
             <Text style={styles.appName}>Jeany's Olshoppe</Text>
-            <Text style={styles.appTagline}>Rider Login</Text>
+            <Text style={styles.appTagline}>Login</Text>
           </View>
 
           {/* Form */}
@@ -167,11 +167,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   appTagline: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.35)',
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.8)',
     marginTop: 6,
-    letterSpacing: 3,
+    letterSpacing: 2,
     textTransform: 'uppercase',
   },
   formSection: {
