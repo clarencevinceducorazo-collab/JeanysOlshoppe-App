@@ -1,12 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, StatusBar,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, StatusBar, SafeAreaView,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { supabase, Chat } from '../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { ChatStackParamList } from '../navigation/TabNavigator';
 import { formatDistanceToNow } from 'date-fns';
 
 type ChatWithDetails = Chat & {
@@ -17,20 +15,34 @@ type ChatWithDetails = Chat & {
 };
 
 export function ChatListScreen() {
-  const { rider } = useAuth();
+  const { userProfile, role, isGuest, logout } = useAuth();
   const [chats, setChats] = useState<ChatWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'admin' | 'customer'>('admin');
-  const navigation = useNavigation<NativeStackNavigationProp<ChatStackParamList>>();
+  const navigation = useNavigation<any>();
+
+  // Determine available tabs based on the active user's role
+  const isAdmin = role === 'admin' || role === 'super_admin';
+  const isRider = role === 'rider';
+  const isCustomer = !isAdmin && !isRider; // Standard User
+
+  const availableTabs = [];
+  if (isCustomer) availableTabs.push({ key: 'admin', label: 'Admins' }, { key: 'rider', label: 'Riders' });
+  if (isRider) availableTabs.push({ key: 'customer', label: 'Customers' }, { key: 'admin', label: 'Admins' });
+  if (isAdmin) availableTabs.push({ key: 'customer', label: 'Customers' }, { key: 'rider', label: 'Riders' });
+
+  const [activeTabKey, setActiveTabKey] = useState<string>(availableTabs[0]?.key || 'admin');
 
   const fetchChats = useCallback(async () => {
-    if (!rider) return;
+    if (isGuest || !userProfile) {
+      setLoading(false);
+      return;
+    }
 
-    // Get all chats where rider is participant
+    // Get all chats where the user is participant (can be user_id or rider_id)
     const { data: chatData } = await supabase
       .from('chats')
       .select('*')
-      .or(`user_id.eq.${rider.id},rider_id.eq.${rider.id}`)
+      .or(`user_id.eq.${userProfile.id},rider_id.eq.${userProfile.id}`)
       .order('created_at', { ascending: false });
 
     if (!chatData) {
@@ -41,8 +53,8 @@ export function ChatListScreen() {
     // Enrich with participant names and last message
     const enrichedChats: ChatWithDetails[] = await Promise.all(
       chatData.map(async (chat) => {
-        // Find the other participant
-        const otherId = chat.user_id === rider.id ? chat.rider_id : chat.user_id;
+        // Evaluate the other ID based on who is logged in
+        const otherId = chat.user_id === userProfile.id ? chat.rider_id : chat.user_id;
 
         // Get participant name
         const { data: person } = await supabase
@@ -62,7 +74,7 @@ export function ChatListScreen() {
 
         return {
           ...chat,
-          participant_name: person?.full_name || 'Admin',
+          participant_name: person?.full_name || 'System User',
           participant_role: person?.role || 'user',
           last_message: lastMsg?.message,
           last_message_at: lastMsg?.created_at,
@@ -72,14 +84,14 @@ export function ChatListScreen() {
 
     setChats(enrichedChats);
     setLoading(false);
-  }, [rider]);
+  }, [userProfile, isGuest]);
 
   useEffect(() => {
     fetchChats();
 
-    if (!rider) return;
+    if (!userProfile) return;
 
-    // Subscribe to new messages to update list
+    // Subscribe to new messages
     const channel = supabase
       .channel('chat-list-updates')
       .on('postgres_changes', {
@@ -94,7 +106,7 @@ export function ChatListScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [rider, fetchChats]);
+  }, [userProfile, fetchChats]);
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -106,32 +118,36 @@ export function ChatListScreen() {
       ? formatDistanceToNow(new Date(item.last_message_at), { addSuffix: true })
       : '';
 
-    const otherId = item.user_id === rider?.id ? item.rider_id : item.user_id;
+    const otherId = item.user_id === userProfile?.id ? item.rider_id : item.user_id;
+    const isOtherAdmin = item.participant_role === 'admin' || item.participant_role === 'super_admin';
 
     return (
       <TouchableOpacity
         style={styles.chatRow}
         onPress={() => navigation.navigate('ChatConversation', {
           chatId: item.id,
-          participantName: item.participant_name || 'Admin',
+          participantName: item.participant_name || 'User',
           participantId: otherId,
         })}
         activeOpacity={0.7}
       >
-        {/* Avatar */}
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{initials}</Text>
         </View>
 
-        {/* Info */}
         <View style={styles.chatInfo}>
           <View style={styles.chatHeader}>
             <Text style={styles.chatName} numberOfLines={1}>
               {item.participant_name}
             </Text>
-            {(item.participant_role === 'admin' || item.participant_role === 'super_admin') && (
+            {isOtherAdmin && (
               <View style={styles.adminBadge}>
                 <Text style={styles.adminBadgeText}>Admin</Text>
+              </View>
+            )}
+            {item.participant_role === 'rider' && !isOtherAdmin && (
+              <View style={styles.riderBadge}>
+                 <Text style={styles.riderBadgeText}>Rider</Text>
               </View>
             )}
           </View>
@@ -142,22 +158,41 @@ export function ChatListScreen() {
           )}
         </View>
 
-        {/* Time */}
-        {timeAgo ? (
-          <Text style={styles.timeAgo}>{timeAgo}</Text>
-        ) : null}
+        {timeAgo ? <Text style={styles.timeAgo}>{timeAgo}</Text> : null}
       </TouchableOpacity>
     );
   };
 
+  if (isGuest) {
+     return (
+       <SafeAreaView style={styles.containerGuest}>
+         <View style={styles.emptyState}>
+           <Text style={styles.emptyEmoji}>💬</Text>
+           <Text style={styles.emptyTitle}>Log in to Chat</Text>
+           <Text style={styles.emptyDesc}>
+             Please register or log in to message our Admins or Delivery Riders regarding your concerns.
+           </Text>
+           <TouchableOpacity style={styles.loginButton} onPress={() => logout()}>
+              <Text style={styles.loginButtonText}>Go to Login</Text>
+           </TouchableOpacity>
+         </View>
+       </SafeAreaView>
+     )
+  }
+
   const filteredChats = chats.filter(chat => {
-    const isAdmin = chat.participant_role === 'admin' || chat.participant_role === 'super_admin';
-    return activeTab === 'admin' ? isAdmin : !isAdmin;
+    const isOtherAdmin = chat.participant_role === 'admin' || chat.participant_role === 'super_admin';
+    const isOtherRider = chat.participant_role === 'rider';
+    
+    if (activeTabKey === 'admin') return isOtherAdmin;
+    if (activeTabKey === 'rider') return isOtherRider;
+    if (activeTabKey === 'customer') return !isOtherAdmin && !isOtherRider;
+    return true;
   });
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#FAF9F6" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -167,22 +202,20 @@ export function ChatListScreen() {
         </Text>
       </View>
 
-      {/* Tabs */}
+      {/* Dynamic Tabs */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'admin' && styles.tabActive]}
-          onPress={() => setActiveTab('admin')}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.tabText, activeTab === 'admin' && styles.tabTextActive]}>Admin Support</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'customer' && styles.tabActive]}
-          onPress={() => setActiveTab('customer')}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.tabText, activeTab === 'customer' && styles.tabTextActive]}>Customers</Text>
-        </TouchableOpacity>
+        {availableTabs.map((tab) => (
+           <TouchableOpacity
+              key={tab.key}
+              style={[styles.tab, activeTabKey === tab.key && styles.tabActive]}
+              onPress={() => setActiveTabKey(tab.key)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.tabText, activeTabKey === tab.key && styles.tabTextActive]}>
+                 {tab.label}
+              </Text>
+            </TouchableOpacity>
+        ))}
       </View>
 
       {filteredChats.length === 0 && !loading ? (
@@ -190,9 +223,7 @@ export function ChatListScreen() {
           <Text style={styles.emptyEmoji}>💬</Text>
           <Text style={styles.emptyTitle}>No Messages Yet</Text>
           <Text style={styles.emptyDesc}>
-            {activeTab === 'admin' 
-              ? 'Your conversations with admin will appear here.'
-              : 'Your conversations with customers will appear here.'}
+            Your conversations will appear tracking here safely in realtime.
           </Text>
         </View>
       ) : (
@@ -201,62 +232,70 @@ export function ChatListScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderChat}
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#FAF9F6', // Adapting to Wabi-Sabi light theme from Omni-App
+  },
+  containerGuest: {
+     flex: 1,
+     backgroundColor: '#FAF9F6',
+     alignItems: 'center',
+     justifyContent: 'center',
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 58,
+    paddingTop: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
-    color: '#ffffff',
+    color: '#333333',
     letterSpacing: -0.5,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.35)',
+    color: '#888888',
     marginTop: 4,
   },
   // Tabs
   tabContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 8,
     gap: 12,
     paddingTop: 16,
+    paddingBottom: 16,
   },
   tab: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: '#EBEAE5',
   },
   tabActive: {
-    backgroundColor: 'rgba(26, 115, 232, 0.15)',
-    borderColor: 'rgba(26, 115, 232, 0.3)',
+    backgroundColor: '#333333',
+    borderColor: '#333333',
   },
   tabText: {
-    color: 'rgba(255,255,255,0.6)',
+    color: '#666666',
     fontSize: 14,
     fontWeight: '600',
   },
   tabTextActive: {
-    color: '#1a73e8',
+    color: '#ffffff',
   },
   listContent: {
     paddingBottom: 100,
@@ -268,23 +307,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.04)',
+    borderBottomColor: 'rgba(0,0,0,0.04)',
     gap: 14,
   },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(26, 115, 232, 0.15)',
+    backgroundColor: 'rgba(251, 113, 133, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(26, 115, 232, 0.25)',
+    borderColor: 'rgba(251, 113, 133, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1a73e8',
+    color: '#fb7185',
   },
   chatInfo: {
     flex: 1,
@@ -297,29 +336,42 @@ const styles = StyleSheet.create({
   },
   chatName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontWeight: '700',
+    color: '#333333',
   },
   adminBadge: {
-    backgroundColor: 'rgba(26, 115, 232, 0.15)',
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
   },
   adminBadgeText: {
     fontSize: 9,
-    fontWeight: '700',
-    color: '#1a73e8',
+    fontWeight: '800',
+    color: '#22c55e',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
+  riderBadge: {
+     backgroundColor: 'rgba(249, 115, 22, 0.1)',
+     paddingHorizontal: 8,
+     paddingVertical: 2,
+     borderRadius: 8,
+  },
+  riderBadgeText: {
+     fontSize: 9,
+     fontWeight: '800',
+     color: '#f97316',
+     textTransform: 'uppercase',
+     letterSpacing: 0.8,
+  },
   lastMessage: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    fontSize: 14,
+    color: '#888888',
   },
   timeAgo: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.2)',
+    color: '#aaaaaa',
   },
   // Empty
   emptyState: {
@@ -327,6 +379,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
+    paddingBottom: 60,
   },
   emptyEmoji: {
     fontSize: 64,
@@ -336,13 +389,24 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.5)',
+    color: '#666666',
     marginBottom: 8,
   },
   emptyDesc: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.25)',
+    color: '#999999',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
+    marginBottom: 24,
   },
+  loginButton: {
+     backgroundColor: '#333333',
+     paddingHorizontal: 24,
+     paddingVertical: 12,
+     borderRadius: 8,
+  },
+  loginButtonText: {
+     color: '#ffffff',
+     fontWeight: '700',
+  }
 });
