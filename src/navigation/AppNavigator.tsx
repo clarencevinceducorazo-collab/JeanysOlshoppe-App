@@ -5,12 +5,12 @@ import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
 import { SplashScreen } from '../screens/SplashScreen';
 import { TabNavigator } from './TabNavigator';
-import { UserWebViewScreen } from '../screens/UserWebViewScreen';
+import { UserTabNavigator } from './UserTabNavigator';
 
 export type RootStackParamList = {
   Login: undefined;
   MainTabs: undefined;
-  WebPortal: undefined;
+  UserTabs: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -31,8 +31,8 @@ export function AppNavigator() {
             // Native Rider App
             <Stack.Screen name="MainTabs" component={TabNavigator} />
           ) : (
-            // Hybrid Omni-App (Next.js WebView) for Users and Admins
-            <Stack.Screen name="WebPortal" component={UserWebViewScreen} />
+            // Native Omni-App for Users, Guests, and Admins
+            <Stack.Screen name="UserTabs" component={UserTabNavigator} />
           )
         ) : (
           // Authenticate
