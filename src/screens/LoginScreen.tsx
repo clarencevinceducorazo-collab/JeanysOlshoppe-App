@@ -7,7 +7,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 
 export function LoginScreen() {
-  const { signIn } = useAuth();
+  const { signIn, continueAsGuest } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -107,6 +107,15 @@ export function LoginScreen() {
               ) : (
                 <Text style={styles.loginButtonText}>Log In</Text>
               )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.guestButton}
+              onPress={continueAsGuest}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.guestButtonText}>Continue as Guest</Text>
             </TouchableOpacity>
 
             <Text style={styles.helpText}>
@@ -241,6 +250,22 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  guestButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    height: 56,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  guestButtonText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 15,
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   helpText: {

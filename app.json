@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Jeanys Rider",
-    "slug": "jeanys-rider-app",
+    "name": "Jeanys Olshoppe App",
+    "slug": "jeanys-olshoppe-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.jeanys.riderapp",
+      "bundleIdentifier": "com.jeanys.olshoppe",
       "config": {
         "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY"
       },
@@ -30,7 +30,7 @@
         "backgroundColor": "#0a0a0a"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.jeanys.riderapp",
+      "package": "com.jeanys.olshoppe",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
@@ -49,13 +49,13 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Jeanys Rider to use your location for delivery tracking."
+          "locationAlwaysAndWhenInUsePermission": "Allow Jeanys Olshoppe App to use your location for delivery tracking."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Jeanys Rider to access your photos for your profile picture."
+          "photosPermission": "Allow Jeanys Olshoppe App to access your photos for your profile picture."
         }
       ],
       [

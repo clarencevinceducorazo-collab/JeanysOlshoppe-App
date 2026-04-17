@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase, Delivery } from '../lib/supabase';
 
 export function ProfileScreen() {
-  const { rider, isOnline, toggleOnline, signOut, refreshRider } = useAuth();
+  const { rider, isOnline, toggleOnline, signOut, refreshUserProfile } = useAuth();
   const [todayStats, setTodayStats] = useState({ completed: 0, total: 0 });
   const [uploading, setUploading] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -79,7 +79,7 @@ export function ProfileScreen() {
         .update({ photo_url: urlData.publicUrl })
         .eq('id', rider.id);
 
-      await refreshRider();
+      await refreshUserProfile();
       Alert.alert('✅ Photo Updated', 'Your profile photo has been updated.');
     } catch (e: any) {
       Alert.alert('Upload Failed', e.message || 'Could not upload photo.');

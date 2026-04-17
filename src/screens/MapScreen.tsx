@@ -10,10 +10,10 @@ let PROVIDER_GOOGLE: any = null;
 
 if (!isWeb) {
   const Maps = require('react-native-maps');
-  MapView = Maps.default;
-  Marker = Maps.Marker;
-  Callout = Maps.Callout;
-  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+  MapView = Maps.default || Maps;
+  Marker = Maps.Marker || (Maps.default && Maps.default.Marker);
+  Callout = Maps.Callout || (Maps.default && Maps.default.Callout);
+  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE || (Maps.default && Maps.default.PROVIDER_GOOGLE);
 }
 import { useAuth } from '../context/AuthContext';
 import { useLocation } from '../hooks/useLocation';
