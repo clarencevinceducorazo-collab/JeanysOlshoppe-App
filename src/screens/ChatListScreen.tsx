@@ -1,23 +1,25 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, StatusBar, SafeAreaView,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, StatusBar, SafeAreaView, TextInput, ActivityIndicator
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { supabase, Chat } from '../lib/supabase';
-import { useNavigation } from '@react-navigation/native';
+import { supabase } from '../lib/supabase';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { formatDistanceToNow } from 'date-fns';
 
-type ChatWithDetails = Chat & {
-  participant_name?: string;
-  participant_role?: string;
+type PersonContact = {
+  id: string; // The person's ID string
+  full_name: string;
+  role: string | null;
   last_message?: string;
   last_message_at?: string;
 };
 
 export function ChatListScreen() {
   const { userProfile, role, isGuest, logout } = useAuth();
-  const [chats, setChats] = useState<ChatWithDetails[]>([]);
+  const [contacts, setContacts] = useState<PersonContact[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const navigation = useNavigation<any>();
 
   // Determine available tabs based on the active user's role
@@ -32,102 +34,119 @@ export function ChatListScreen() {
 
   const [activeTabKey, setActiveTabKey] = useState<string>(availableTabs[0]?.key || 'admin');
 
-  const fetchChats = useCallback(async () => {
+  const fetchContactsDirectory = useCallback(async () => {
     if (isGuest || !userProfile) {
       setLoading(false);
       return;
     }
 
-    // Get all chats where the user is participant (can be user_id or rider_id)
-    const { data: chatData } = await supabase
-      .from('chats')
-      .select('*')
-      .or(`user_id.eq.${userProfile.id},rider_id.eq.${userProfile.id}`)
-      .order('created_at', { ascending: false });
+    setLoading(true);
 
-    if (!chatData) {
+    // Filter roles based on active tab
+    let allowedRoles: string[] = [];
+    if (activeTabKey === 'admin') allowedRoles = ['admin', 'super_admin'];
+    if (activeTabKey === 'rider') allowedRoles = ['rider'];
+    if (activeTabKey === 'customer') allowedRoles = ['user', null]; // users might have null role string
+
+    // 1. Fetch people directly acting as a global directory
+    let query = supabase.from('people').select('id, full_name, role').neq('id', userProfile.id);
+    
+    if (activeTabKey === 'customer') {
+      query = query.or('role.eq.user,role.is.null');
+    } else {
+      query = query.in('role', allowedRoles);
+    }
+
+    const { data: peopleData, error: peopleErr } = await query;
+
+    if (!peopleData || peopleErr) {
       setLoading(false);
       return;
     }
 
-    // Enrich with participant names and last message
-    const enrichedChats: ChatWithDetails[] = await Promise.all(
-      chatData.map(async (chat) => {
-        // Evaluate the other ID based on who is logged in
-        const otherId = chat.user_id === userProfile.id ? chat.rider_id : chat.user_id;
+    // 2. Fetch all of OUR chat mappings to detect which contacts we have history with
+    const { data: myChats } = await supabase
+      .from('chats')
+      .select('id, user_id, rider_id')
+      .or(`user_id.eq.${userProfile.id},rider_id.eq.${userProfile.id}`);
 
-        // Get participant name
-        const { data: person } = await supabase
-          .from('people')
-          .select('full_name, role')
-          .eq('id', otherId)
-          .single();
+    // Map participantId -> Chat Object
+    const chatMapping: Record<string, string> = {};
+    if (myChats) {
+      myChats.forEach(c => {
+         const otherId = c.user_id === userProfile.id ? c.rider_id : c.user_id;
+         chatMapping[otherId] = c.id;
+      });
+    }
 
-        // Get last message
-        const { data: lastMsg } = await supabase
-          .from('messages')
-          .select('message, created_at')
-          .eq('chat_id', chat.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+    // 3. For contacts we have history with, fetch their last message
+    // (In an enterprise app, we would use a SQL View, but this works exceptionally well for React Native MVPs)
+    const enrichedContacts: PersonContact[] = await Promise.all(
+      peopleData.map(async (person) => {
+        const chatId = chatMapping[person.id];
+        let lastMsg = null;
+
+        if (chatId) {
+          const { data: msgData } = await supabase
+            .from('messages')
+            .select('message, created_at')
+            .eq('chat_id', chatId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+            
+          lastMsg = msgData;
+        }
 
         return {
-          ...chat,
-          participant_name: person?.full_name || 'System User',
-          participant_role: person?.role || 'user',
+          id: person.id,
+          full_name: person.full_name || 'System User',
+          role: person.role || 'user',
           last_message: lastMsg?.message,
           last_message_at: lastMsg?.created_at,
         };
       })
     );
 
-    setChats(enrichedChats);
+    // Sort so those WITH a last message appear at top
+    enrichedContacts.sort((a, b) => {
+       if (a.last_message_at && !b.last_message_at) return -1;
+       if (!a.last_message_at && b.last_message_at) return 1;
+       if (a.last_message_at && b.last_message_at) {
+          return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime();
+       }
+       return a.full_name.localeCompare(b.full_name);
+    });
+
+    setContacts(enrichedContacts);
     setLoading(false);
-  }, [userProfile, isGuest]);
+  }, [userProfile, isGuest, activeTabKey]);
 
-  useEffect(() => {
-    fetchChats();
-
-    if (!userProfile) return;
-
-    // Subscribe to new messages
-    const channel = supabase
-      .channel('chat-list-updates')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-      }, () => {
-        fetchChats();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userProfile, fetchChats]);
+  // Re-fetch when entering the screen just to ensure last messages are updated
+  useFocusEffect(
+    useCallback(() => {
+      fetchContactsDirectory();
+    }, [fetchContactsDirectory])
+  );
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const renderChat = ({ item }: { item: ChatWithDetails }) => {
-    const initials = getInitials(item.participant_name || 'A');
+  const renderContact = ({ item }: { item: PersonContact }) => {
+    const initials = getInitials(item.full_name || 'A');
     const timeAgo = item.last_message_at
       ? formatDistanceToNow(new Date(item.last_message_at), { addSuffix: true })
       : '';
 
-    const otherId = item.user_id === userProfile?.id ? item.rider_id : item.user_id;
-    const isOtherAdmin = item.participant_role === 'admin' || item.participant_role === 'super_admin';
+    const isOtherAdmin = item.role === 'admin' || item.role === 'super_admin';
 
     return (
       <TouchableOpacity
         style={styles.chatRow}
         onPress={() => navigation.navigate('ChatConversation', {
-          chatId: item.id,
-          participantName: item.participant_name || 'User',
-          participantId: otherId,
+          participantId: item.id,
+          participantName: item.full_name || 'User',
         })}
         activeOpacity={0.7}
       >
@@ -137,24 +156,23 @@ export function ChatListScreen() {
 
         <View style={styles.chatInfo}>
           <View style={styles.chatHeader}>
-            <Text style={styles.chatName} numberOfLines={1}>
-              {item.participant_name}
-            </Text>
+            <Text style={styles.chatName} numberOfLines={1}>{item.full_name}</Text>
             {isOtherAdmin && (
               <View style={styles.adminBadge}>
                 <Text style={styles.adminBadgeText}>Admin</Text>
               </View>
             )}
-            {item.participant_role === 'rider' && !isOtherAdmin && (
+            {item.role === 'rider' && !isOtherAdmin && (
               <View style={styles.riderBadge}>
                  <Text style={styles.riderBadgeText}>Rider</Text>
               </View>
             )}
           </View>
-          {item.last_message && (
-            <Text style={styles.lastMessage} numberOfLines={1}>
-              {item.last_message}
-            </Text>
+          
+          {item.last_message ? (
+            <Text style={styles.lastMessage} numberOfLines={1}>{item.last_message}</Text>
+          ) : (
+            <Text style={styles.noHistoryMessage} numberOfLines={1}>Tap to start a conversation</Text>
           )}
         </View>
 
@@ -180,26 +198,30 @@ export function ChatListScreen() {
      )
   }
 
-  const filteredChats = chats.filter(chat => {
-    const isOtherAdmin = chat.participant_role === 'admin' || chat.participant_role === 'super_admin';
-    const isOtherRider = chat.participant_role === 'rider';
-    
-    if (activeTabKey === 'admin') return isOtherAdmin;
-    if (activeTabKey === 'rider') return isOtherRider;
-    if (activeTabKey === 'customer') return !isOtherAdmin && !isOtherRider;
-    return true;
-  });
+  // Local Search Filter
+  const filteredContacts = contacts.filter(contact => 
+    contact.full_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#FAF9F6" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FAF9F6" />
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
-        <Text style={styles.headerSubtitle}>
-          {filteredChats.length} conversation{filteredChats.length !== 1 ? 's' : ''}
-        </Text>
+        <Text style={styles.headerTitle}>Directory</Text>
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Text style={styles.searchIcon}>🔍</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name..."
+          placeholderTextColor="#999999"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
       </View>
 
       {/* Dynamic Tabs */}
@@ -218,19 +240,23 @@ export function ChatListScreen() {
         ))}
       </View>
 
-      {filteredChats.length === 0 && !loading ? (
+      {loading ? (
+         <View style={styles.emptyState}>
+            <ActivityIndicator size="large" color="#fb7185" />
+         </View>
+      ) : filteredContacts.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyEmoji}>💬</Text>
-          <Text style={styles.emptyTitle}>No Messages Yet</Text>
+          <Text style={styles.emptyTitle}>No Results Found</Text>
           <Text style={styles.emptyDesc}>
-            Your conversations will appear tracking here safely in realtime.
+            We couldn't find anyone matching your search inside the directory.
           </Text>
         </View>
       ) : (
         <FlatList
-          data={filteredChats}
+          data={filteredContacts}
           keyExtractor={(item) => item.id}
-          renderItem={renderChat}
+          renderItem={renderContact}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
@@ -242,7 +268,7 @@ export function ChatListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF9F6', // Adapting to Wabi-Sabi light theme from Omni-App
+    backgroundColor: '#FAF9F6', 
   },
   containerGuest: {
      flex: 1,
@@ -253,9 +279,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
+    paddingBottom: 8,
   },
   headerTitle: {
     fontSize: 32,
@@ -263,11 +287,30 @@ const styles = StyleSheet.create({
     color: '#333333',
     letterSpacing: -0.5,
   },
-  headerSubtitle: {
-    fontSize: 13,
-    color: '#888888',
-    marginTop: 4,
+  
+  // Search Bar
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    marginHorizontal: 20,
+    marginTop: 8,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 48,
   },
+  searchIcon: {
+    fontSize: 16,
+    marginRight: 8,
+    opacity: 0.5,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333333',
+    height: '100%',
+  },
+
   // Tabs
   tabContainer: {
     flexDirection: 'row',
@@ -276,6 +319,8 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingTop: 16,
     paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   tab: {
     paddingVertical: 10,
@@ -300,6 +345,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 100,
   },
+  
   // Chat row
   chatRow: {
     flexDirection: 'row',
@@ -369,10 +415,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888888',
   },
+  noHistoryMessage: {
+    fontSize: 13,
+    color: '#fb7185', // Accent color
+    fontWeight: '500',
+  },
   timeAgo: {
     fontSize: 11,
     color: '#aaaaaa',
   },
+  
   // Empty
   emptyState: {
     flex: 1,
@@ -380,6 +432,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 40,
     paddingBottom: 60,
+    paddingTop: 80,
   },
   emptyEmoji: {
     fontSize: 64,
