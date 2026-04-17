@@ -127,19 +127,28 @@ export function UserHomeScreen({ navigation }: any) {
 
             {/* Inlined Native Product Grid Concept */}
             <View style={styles.productGrid}>
-              {featuredProducts.map((product) => (
-                <View key={product.id} style={styles.productCard}>
-                  <View style={styles.productImagePlaceholder}>
-                     <Image 
-                        source={{ uri: product.image_url || 'https://picsum.photos/seed/placeholder/300/300' }} 
-                        style={styles.productImage}
-                        resizeMode="cover"
-                      />
-                  </View>
-                  <Text style={styles.productName} numberOfLines={1}>{product.name}</Text>
-                  <Text style={styles.productPrice}>₱{product.price}</Text>
-                </View>
-              ))}
+              {featuredProducts.map((product) => {
+                const coverImage = product.images?.[0] || 'https://picsum.photos/seed/placeholder/300/300';
+                
+                return (
+                  <TouchableOpacity 
+                    key={product.id} 
+                    style={styles.productCard}
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('ProductDetail', { id: product.id })}
+                  >
+                    <View style={styles.productImagePlaceholder}>
+                      <Image 
+                          source={{ uri: coverImage }} 
+                          style={styles.productImage}
+                          resizeMode="cover"
+                        />
+                    </View>
+                    <Text style={styles.productName} numberOfLines={1}>{product.name}</Text>
+                    <Text style={styles.productPrice}>₱{product.price.toFixed(2)}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         )}
