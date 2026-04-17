@@ -12,7 +12,7 @@ import type { ChatStackParamList } from '../navigation/TabNavigator';
 export function ChatConversationScreen() {
   const route = useRoute<RouteProp<ChatStackParamList, 'ChatConversation'>>();
   const navigation = useNavigation();
-  const { rider } = useAuth();
+  const { userProfile, role } = useAuth();
   const { chatId, participantName } = route.params;
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -62,7 +62,7 @@ export function ChatConversationScreen() {
   }, [messages.length]);
 
   const sendMessage = async () => {
-    if (!inputText.trim() || !rider || sending) return;
+    if (!inputText.trim() || !userProfile || sending) return;
 
     const msg = inputText.trim();
     setInputText('');
@@ -70,7 +70,7 @@ export function ChatConversationScreen() {
 
     await supabase.from('messages').insert({
       chat_id: chatId,
-      sender_id: rider.id,
+      sender_id: userProfile.id,
       message: msg,
     });
 
@@ -81,7 +81,8 @@ export function ChatConversationScreen() {
     <ChatBubble
       message={item.message}
       timestamp={item.created_at}
-      isMe={item.sender_id === rider?.id}
+      isMe={item.sender_id === userProfile?.id}
+      isAdmin={role === 'admin' || role === 'super_admin'}
     />
   );
 
