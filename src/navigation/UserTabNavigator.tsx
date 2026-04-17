@@ -8,6 +8,8 @@ import { LiveScreen } from '../screens/LiveScreen';
 import { TeamScreen } from '../screens/TeamScreen';
 import { MeScreen } from '../screens/MeScreen';
 import { AdminDashboardScreen } from '../screens/AdminDashboardScreen';
+import { ChatListScreen } from '../screens/ChatListScreen';
+import { MapScreen } from '../screens/MapScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -18,6 +20,8 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
     Shop: '🛍️',
     Live: '🔴',
     Team: '👥',
+    Chat: '💬',
+    Map: '🗺️',
     Me: '👤',
     Admin: '🛡️',
   };
@@ -52,6 +56,8 @@ export function UserTabNavigator() {
       <Tab.Screen name="Shop" component={ShopScreen} />
       <Tab.Screen name="Live" component={LiveScreen} />
       <Tab.Screen name="Team" component={TeamScreen} />
+      <Tab.Screen name="Chat" component={ChatListScreen} />
+      <Tab.Screen name="Map" component={MapScreen} />
       <Tab.Screen name="Me" component={MeScreen} />
       
       {/* Conditionally reveal the Native Admin Panel */}
