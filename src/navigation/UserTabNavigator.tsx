@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { UserHomeScreen } from '../screens/UserHomeScreen';
 import { ShopScreen } from '../screens/ShopScreen';
 import { LiveScreen } from '../screens/LiveScreen';
+import { TeamScreen } from '../screens/TeamScreen';
 import { MeScreen } from '../screens/MeScreen';
 import { AdminDashboardScreen } from '../screens/AdminDashboardScreen';
 
@@ -16,6 +17,7 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
     Home: '🏠',
     Shop: '🛍️',
     Live: '🔴',
+    Team: '👥',
     Me: '👤',
     Admin: '🛡️',
   };
@@ -49,6 +51,7 @@ export function UserTabNavigator() {
       <Tab.Screen name="Home" component={UserHomeScreen} />
       <Tab.Screen name="Shop" component={ShopScreen} />
       <Tab.Screen name="Live" component={LiveScreen} />
+      <Tab.Screen name="Team" component={TeamScreen} />
       <Tab.Screen name="Me" component={MeScreen} />
       
       {/* Conditionally reveal the Native Admin Panel */}
