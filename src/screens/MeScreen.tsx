@@ -115,7 +115,7 @@ export function MeScreen() {
 
             <View style={styles.menuDivider} />
 
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Privacy')}>
               <View style={[styles.menuIconContainer, { backgroundColor: '#f3f4f6' }]}>
                 <Text style={styles.menuIconText}>📄</Text>
               </View>
