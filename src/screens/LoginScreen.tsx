@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator,
-  ScrollView, Alert,
+  ScrollView, Alert, Image,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -141,7 +141,11 @@ export function LoginScreen() {
           {/* Logo */}
           <View style={styles.logoSection}>
             <View style={styles.logoContainer}>
-              <Text style={styles.logoEmoji}>🛵</Text>
+              <Image 
+                 source={require('../public/images/icon.png')} 
+                 style={styles.logoImage} 
+                 resizeMode="contain" 
+              />
             </View>
             <Text style={styles.appName}>Jeany's Olshoppe</Text>
             <Text style={styles.appTagline}>{isLogin ? 'Login' : 'Create Account'}</Text>
@@ -160,7 +164,7 @@ export function LoginScreen() {
                       style={styles.input}
                       value={firstName}
                       onChangeText={setFirstName}
-                      placeholder="Jane"
+                      placeholder="First Name"
                       placeholderTextColor="rgba(255,255,255,0.2)"
                       editable={!loading}
                     />
@@ -171,7 +175,7 @@ export function LoginScreen() {
                       style={styles.input}
                       value={lastName}
                       onChangeText={setLastName}
-                      placeholder="Doe"
+                      placeholder="Last Name"
                       placeholderTextColor="rgba(255,255,255,0.2)"
                       editable={!loading}
                     />
@@ -341,9 +345,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
+    overflow: 'hidden',
   },
-  logoEmoji: {
-    fontSize: 42,
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   appName: {
     fontSize: 26,
