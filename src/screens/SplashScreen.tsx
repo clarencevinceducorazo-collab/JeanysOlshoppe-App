@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, Animated, StyleSheet, StatusBar, Image } from 'react-native';
 
 export function SplashScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -34,10 +34,13 @@ export function SplashScreen() {
       <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logoEmoji}>🛵</Text>
+          <Image 
+             source={require('../public/images/icon.png')} 
+             style={styles.logoImage} 
+             resizeMode="contain" 
+          />
         </View>
         <Text style={styles.title}>Jeany's Olshoppe</Text>
-        <Text style={styles.subtitle}>Rider App</Text>
         <Animated.View style={[styles.loadingDot, { opacity: dotAnim }]} />
       </Animated.View>
     </View>
@@ -58,15 +61,17 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 28,
-    backgroundColor: 'rgba(26, 115, 232, 0.15)',
+    backgroundColor: 'rgba(251, 113, 133, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(26, 115, 232, 0.3)',
+    borderColor: 'rgba(251, 113, 133, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
+    overflow: 'hidden',
   },
-  logoEmoji: {
-    fontSize: 48,
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   title: {
     fontSize: 28,
@@ -74,19 +79,11 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     letterSpacing: 0.5,
   },
-  subtitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.4)',
-    marginTop: 6,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-  },
   loadingDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#1a73e8',
+    backgroundColor: '#fb7185',
     marginTop: 40,
   },
 });
