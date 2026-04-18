@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, 
   ActivityIndicator, Dimensions, Linking, Alert, SafeAreaView 
 } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 
@@ -15,6 +16,7 @@ export function ProductDetailScreen() {
 
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
     async function fetchProduct() {
@@ -37,7 +39,23 @@ export function ProductDetailScreen() {
         setLoading(false);
       }
     }
+
+    async function checkWishlist() {
+      try {
+        const savedData = await SecureStore.getItemAsync('wishlist');
+        if (savedData) {
+          const list: string[] = JSON.parse(savedData);
+          if (list.includes(id)) {
+            setIsSaved(true);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching wishlist:', err);
+      }
+    }
+
     fetchProduct();
+    checkWishlist();
   }, [id, navigation]);
 
   if (loading || !product) {
@@ -65,6 +83,28 @@ export function ProductDetailScreen() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const toggleWishlist = async () => {
+    try {
+      const savedData = await SecureStore.getItemAsync('wishlist');
+      let list: string[] = savedData ? JSON.parse(savedData) : [];
+      
+      if (isSaved) {
+        // Remove
+        list = list.filter(item => item !== id);
+        setIsSaved(false);
+      } else {
+        // Add
+        if (!list.includes(id)) list.push(id);
+        setIsSaved(true);
+      }
+      
+      await SecureStore.setItemAsync('wishlist', JSON.stringify(list));
+    } catch (err) {
+      console.error('Failed to update wishlist:', err);
+      Alert.alert('Error', 'Could not update wishlist.');
     }
   };
 
@@ -154,8 +194,11 @@ export function ProductDetailScreen() {
         <TouchableOpacity 
           style={[styles.wishlistButton, isSoldOut && styles.disabledButton]} 
           disabled={isSoldOut}
+          onPress={toggleWishlist}
         >
-          <Text style={[styles.wishlistText, isSoldOut && styles.disabledText]}>🤍 Add to Wishlist</Text>
+          <Text style={[styles.wishlistText, isSoldOut && styles.disabledText, isSaved && styles.savedWishlistText]}>
+             {isSaved ? '❤️ Remove from Wishlist' : '🤍 Add to Wishlist'}
+          </Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -313,6 +356,9 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  savedWishlistText: {
+    color: '#fb7185', // Accent color to show it's active
   },
   disabledText: {
     color: '#999999',

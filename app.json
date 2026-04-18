@@ -1,10 +1,10 @@
 {
   "expo": {
     "name": "Jeany's Olshoppe",
-    "slug": "jeanys-olshoppe",
+    "slug": "jeanys-Olshoppe-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./src/public/images/icon.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {

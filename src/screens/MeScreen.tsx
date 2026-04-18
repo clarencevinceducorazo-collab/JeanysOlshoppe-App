@@ -1,9 +1,9 @@
-import React from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, SafeAreaView 
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
+import * as SecureStore from 'expo-secure-store';
 
 export function MeScreen() {
   const { userProfile, role, isGuest, logout } = useAuth();
@@ -33,8 +33,9 @@ export function MeScreen() {
 
             <TouchableOpacity 
               style={styles.emailLoginButton}
-              onPress={() => {
-                 logout(); // Route them back to root login screen
+              onPress={async () => {
+                 await SecureStore.setItemAsync('intent_register_flag', 'true');
+                 logout(); 
               }}
             >
               <Text style={styles.emailButtonText}>✉️  Continue with Email</Text>
