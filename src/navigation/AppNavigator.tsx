@@ -9,6 +9,7 @@ import { UserTabNavigator } from './UserTabNavigator';
 import { ProductDetailScreen } from '../screens/ProductDetailScreen';
 import { SavedScreen } from '../screens/SavedScreen';
 import { PrivacyScreen } from '../screens/PrivacyScreen';
+import { TermsScreen } from '../screens/TermsScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -17,6 +18,7 @@ export type RootStackParamList = {
   ProductDetail: { id: string };
   Saved: undefined;
   Privacy: undefined;
+  Terms: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -47,6 +49,7 @@ export function AppNavigator() {
         <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
         <Stack.Screen name="Saved" component={SavedScreen} />
         <Stack.Screen name="Privacy" component={PrivacyScreen} />
+        <Stack.Screen name="Terms" component={TermsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
