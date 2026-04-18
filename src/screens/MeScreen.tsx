@@ -1,3 +1,4 @@
+import React from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, SafeAreaView 
 } from 'react-native';
@@ -6,7 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 
 export function MeScreen() {
-  const { userProfile, role, isGuest, logout } = useAuth();
+  const { userProfile, role, isGuest, signOut } = useAuth();
   const navigation = useNavigation<any>();
 
   const isAdmin = role === 'admin' || role === 'super_admin';
@@ -33,9 +34,9 @@ export function MeScreen() {
 
             <TouchableOpacity 
               style={styles.emailLoginButton}
-              onPress={async () => {
+               onPress={async () => {
                  await SecureStore.setItemAsync('intent_register_flag', 'true');
-                 logout(); 
+                 signOut(); 
               }}
             >
               <Text style={styles.emailButtonText}>✉️  Continue with Email</Text>
@@ -146,7 +147,7 @@ export function MeScreen() {
           </View>
 
           {/* Sign Out */}
-          <TouchableOpacity style={styles.signOutButton} onPress={logout}>
+          <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
              <Text style={styles.signOutIcon}>🚪</Text>
              <Text style={styles.signOutText}>Sign Out</Text>
           </TouchableOpacity>
